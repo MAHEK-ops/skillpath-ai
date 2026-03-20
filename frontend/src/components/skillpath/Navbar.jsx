@@ -132,12 +132,12 @@ function Navbar({ currentPage, onNavigate }) {
             <div
                 className="text-xs font-medium px-3 py-1.5 rounded-full hidden sm:block"
                 style={{
-                    background: "rgba(17,24,39,0.8)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    color: "#8892a4"
+                    background: "rgba(96,165,250,0.08)",
+                    border: "1px solid rgba(96,165,250,0.2)",
+                    color: "#60a5fa"
                 }}
             >
-                ✦ IISc Hackathon 2025
+                ✦ IISc Bangalore 2026
             </div>
         </nav>
     )
