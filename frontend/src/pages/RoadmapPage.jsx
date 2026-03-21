@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { downloadRoadmapPDF } from '../utils/exportPDF'
 
 const courses = [
     {
@@ -125,16 +126,11 @@ function SkillGraph() {
                         />
                     ))}
                 </svg>
-
                 {nodes.map((node) => (
                     <div
                         key={node.id}
                         className="absolute px-3 py-2 rounded-lg text-xs font-medium"
-                        style={{
-                            left: node.x,
-                            top: node.y,
-                            ...getNodeStyle(node.status)
-                        }}
+                        style={{ left: node.x, top: node.y, ...getNodeStyle(node.status) }}
                     >
                         {node.status === "completed" && "✓ "}
                         {node.label}
@@ -179,8 +175,7 @@ function CourseCard({ course, index, isCompleted, onToggle }) {
                     {isCompleted ? (
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round"
-                                d="M5 13l4 4L19 7" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                     ) : (
                         String(index + 1).padStart(2, "0")
@@ -206,7 +201,6 @@ function CourseCard({ course, index, isCompleted, onToggle }) {
                             </p>
                         </div>
 
-                        {/* Priority badge */}
                         <span
                             className="px-3 py-1 rounded-full text-xs font-medium flex-shrink-0"
                             style={{
@@ -219,7 +213,6 @@ function CourseCard({ course, index, isCompleted, onToggle }) {
                         </span>
                     </div>
 
-                    {/* Duration + Skill tags */}
                     <div className="flex flex-wrap gap-2 mb-4">
                         {[course.duration, course.skill].map((tag) => (
                             <span
@@ -236,7 +229,6 @@ function CourseCard({ course, index, isCompleted, onToggle }) {
                         ))}
                     </div>
 
-                    {/* Why this course — expandable */}
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
                         className="text-sm flex items-center gap-1 transition-colors"
@@ -255,7 +247,6 @@ function CourseCard({ course, index, isCompleted, onToggle }) {
                         </svg>
                     </button>
 
-                    {/* Reasoning panel */}
                     <div
                         className="overflow-hidden transition-all duration-300"
                         style={{ maxHeight: isExpanded ? "160px" : "0px" }}
@@ -296,8 +287,7 @@ function CourseCard({ course, index, isCompleted, onToggle }) {
                     {isCompleted && (
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24"
                             stroke="#0b0f1a" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round"
-                                d="M5 13l4 4L19 7" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                     )}
                 </button>
@@ -309,6 +299,7 @@ function CourseCard({ course, index, isCompleted, onToggle }) {
 
 function RoadmapPage({ onNavigate }) {
     const [completedCourses, setCompletedCourses] = useState([])
+    const [downloading, setDownloading] = useState(false)
 
     const toggleCourse = (id) => {
         setCompletedCourses((prev) =>
@@ -325,6 +316,15 @@ function RoadmapPage({ onNavigate }) {
     }, 0)
     const remainingHours = totalHours - completedHours
     const progressPercent = (completedCourses.length / courses.length) * 100
+
+    const handleDownload = async () => {
+        setDownloading(true)
+        try {
+            await downloadRoadmapPDF(courses, completedCourses)
+        } finally {
+            setDownloading(false)
+        }
+    }
 
     return (
         <div className="min-h-screen px-6 py-12 max-w-4xl mx-auto">
@@ -353,18 +353,45 @@ function RoadmapPage({ onNavigate }) {
                     </div>
                 </div>
 
-                {/* Download PDF button */}
+                {/* Download PDF button — now functional */}
                 <button
-                    className="px-6 py-2 rounded-lg text-sm transition-all duration-300 flex-shrink-0"
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="px-6 py-2 rounded-lg text-sm transition-all duration-300 flex-shrink-0 flex items-center gap-2"
                     style={{
-                        color: "#8892a4",
+                        color: downloading ? "#4a5568" : "#8892a4",
                         background: "#111827",
-                        border: "1px solid rgba(255,255,255,0.05)"
+                        border: "1px solid rgba(255,255,255,0.05)",
+                        cursor: downloading ? "not-allowed" : "pointer"
                     }}
-                    onMouseEnter={e => e.currentTarget.style.border = "1px solid #3b82f6"}
-                    onMouseLeave={e => e.currentTarget.style.border = "1px solid rgba(255,255,255,0.05)"}
+                    onMouseEnter={e => {
+                        if (!downloading)
+                            e.currentTarget.style.border = "1px solid #3b82f6"
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.border = "1px solid rgba(255,255,255,0.05)"
+                    }}
                 >
-                    Download PDF
+                    {downloading ? (
+                        <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10"
+                                    stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Generating...
+                        </>
+                    ) : (
+                        <>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download PDF
+                        </>
+                    )}
                 </button>
             </div>
 
