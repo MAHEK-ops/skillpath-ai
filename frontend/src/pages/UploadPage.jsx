@@ -21,9 +21,13 @@ Nice to have:
 
 function UploadPage({ onNavigate }) {
     const [resumeFile, setResumeFile] = useState(null)
+    const [resumeText, setResumeText] = useState(null)  // ✅ track text mode
     const [jobDescription, setJobDescription] = useState("")
     const [roleType, setRoleType] = useState("technical")
     const [isDragging, setIsDragging] = useState(false)
+    const [isUploading, setIsUploading] = useState(false)
+    const [error, setError] = useState(null)
+    const [isSampleData, setIsSampleData] = useState(false)
     const fileInputRef = useRef(null)
 
     const handleDragOver = (e) => {
@@ -37,24 +41,48 @@ function UploadPage({ onNavigate }) {
         e.preventDefault()
         setIsDragging(false)
         const file = e.dataTransfer.files[0]
-        if (file && file.type === "application/pdf") setResumeFile(file)
+        if (file && file.type === "application/pdf") {
+            setResumeFile(file)
+            setResumeText(null)
+            setIsSampleData(false)
+        }
     }
 
     const handleFileChange = (e) => {
         const file = e.target.files?.[0]
-        if (file) setResumeFile(file)
+        if (file) {
+            setResumeFile(file)
+            setResumeText(null)
+            setIsSampleData(false)
+        }
     }
 
     const loadSampleData = () => {
-        setResumeFile(
-            new File([sampleResume], "sample-resume.pdf", {
-                type: "application/pdf",
-            })
-        )
+        // ✅ Use text instead of fake PDF file
+        setResumeFile(null)
+        setResumeText(sampleResume)
         setJobDescription(sampleJobDescription)
+        setIsSampleData(true)
     }
 
-    const canProceed = resumeFile && jobDescription.trim().length > 0
+    const canProceed = (resumeFile || resumeText) && jobDescription.trim().length > 0
+
+    const handleSubmit = async () => {
+        if (!canProceed) return
+        setIsUploading(true)
+        setError(null)
+        try {
+            onNavigate("processing", {
+                resumeFile: resumeFile || null,      // real PDF file or null
+                resumeText: resumeText || null,       // ✅ text fallback for sample data
+                jdText: jobDescription
+            })
+        } catch (err) {
+            console.error("Upload error:", err)
+            setError(err.message || "Failed to process files")
+            setIsUploading(false)
+        }
+    }
 
     return (
         <div className="min-h-screen px-6 py-12 max-w-5xl mx-auto">
@@ -87,23 +115,23 @@ function UploadPage({ onNavigate }) {
                         Your Resume
                     </label>
                     <div
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => !isSampleData && fileInputRef.current?.click()}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                         className="h-56 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300"
                         style={{
-                            background: resumeFile
+                            background: (resumeFile || isSampleData)
                                 ? "rgba(96,165,250,0.04)"
                                 : isDragging
                                     ? "rgba(59,130,246,0.06)"
                                     : "rgba(96,165,250,0.03)",
-                            border: resumeFile
+                            border: (resumeFile || isSampleData)
                                 ? "2px solid #60a5fa"
                                 : isDragging
                                     ? "2px solid #3b82f6"
                                     : "2px dashed rgba(96,165,250,0.25)",
-                            boxShadow: resumeFile
+                            boxShadow: (resumeFile || isSampleData)
                                 ? "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 20px rgba(96,165,250,0.15)"
                                 : "inset 0 1px 0 rgba(255,255,255,0.03)"
                         }}
@@ -116,7 +144,38 @@ function UploadPage({ onNavigate }) {
                             className="hidden"
                         />
 
-                        {resumeFile ? (
+                        {isSampleData ? (
+                            <>
+                                <div
+                                    className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
+                                    style={{ background: "#00e5a0" }}
+                                >
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24"
+                                        stroke="#0b0f1a" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round"
+                                            d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <span className="font-medium" style={{ color: "#e8edf5" }}>
+                                    Sample Resume Loaded
+                                </span>
+                                <span className="text-sm mt-1" style={{ color: "#8892a4" }}>
+                                    Using Jane Smith sample data
+                                </span>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setIsSampleData(false)
+                                        setResumeText(null)
+                                        fileInputRef.current?.click()
+                                    }}
+                                    className="mt-2 text-xs underline"
+                                    style={{ color: "#60a5fa" }}
+                                >
+                                    Upload your own PDF instead
+                                </button>
+                            </>
+                        ) : resumeFile ? (
                             <>
                                 <div
                                     className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
@@ -240,7 +299,7 @@ function UploadPage({ onNavigate }) {
                 style={{ animationDelay: "0.3s" }}
             >
                 <button
-                    onClick={() => canProceed && onNavigate("processing")}
+                    onClick={handleSubmit}
                     disabled={!canProceed}
                     className="w-full text-lg py-4 rounded-xl font-semibold transition-all duration-300"
                     style={{
@@ -276,6 +335,7 @@ function UploadPage({ onNavigate }) {
                     <span style={{ color: "#8892a4" }}>
                         Don't have a resume?{" "}
                         <button
+                            onClick={() => onNavigate('quiz')}
                             className="transition-colors"
                             style={{ color: "#60a5fa" }}
                             onMouseEnter={e => e.target.style.color = "#93c5fd"}
@@ -286,29 +346,10 @@ function UploadPage({ onNavigate }) {
                     </span>
                 </div>
 
-                <div className="text-center mt-4">
-                    <button
-                        onClick={loadSampleData}
-                        className="px-6 py-2 rounded-lg text-sm transition-all duration-300"
-                        style={{
-                            color: "#8892a4",
-                            background: "#0d1520",
-                            border: "1px solid rgba(255,255,255,0.06)"
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.border = "1px solid #3b82f6"
-                            e.currentTarget.style.color = "#e8edf5"
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.border = "1px solid rgba(255,255,255,0.06)"
-                            e.currentTarget.style.color = "#8892a4"
-                        }}
-                    >
-                        Try with sample data
-                    </button>
-                </div>
+                {error && (
+                    <p className="text-red-400 text-sm text-center mt-3">{error}</p>
+                )}
             </div>
-
         </div>
     )
 }

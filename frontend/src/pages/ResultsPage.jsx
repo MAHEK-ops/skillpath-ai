@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 
-const existingSkills = [
+const defaultExistingSkills = [
     { name: "Python", value: 85, color: "#60a5fa" },
     { name: "SQL", value: 78, color: "#60a5fa" },
     { name: "Data Analysis", value: 72, color: "#60a5fa" },
@@ -9,7 +9,7 @@ const existingSkills = [
     { name: "Communication", value: 80, color: "#60a5fa" },
 ]
 
-const missingSkills = [
+const defaultMissingSkills = [
     { name: "Machine Learning", value: 12, color: "#ff4d6a" },
     { name: "Tableau", value: 0, color: "#ff4d6a" },
     { name: "Python Advanced", value: 35, color: "#ff9500" },
@@ -307,11 +307,59 @@ function SkillStepBar({ name, value, color, delay = 0 }) {
     )
 }
 
-function ResultsPage({ onNavigate }) {
-    return (
-        <div className="min-h-screen px-6 py-12 max-w-5xl mx-auto">
+function ResultsPage({ onNavigate, resultData }) {
+    console.log("ResultsPage data:", JSON.stringify(resultData, null, 2))
+    const analysis = resultData?.analysis || {};
+    const parsed = resultData?.parsed || {};
 
-            {/* Header */}
+    // Map backend data to UI format
+    const existingSkillsData = parsed.candidate_skills
+        ? parsed.candidate_skills.map(s => ({
+            name: s.skill_name,
+            value: (s.proficiency_level / 5) * 100,
+            color: "#60a5fa"
+          }))
+        : defaultExistingSkills;
+
+    const missingSkillsData = analysis.skill_gaps
+        ? analysis.skill_gaps.map(g => ({
+            name: g.skill_name,
+            value: (g.candidate_level / g.required_level) * 100 || 0,
+            color: g.gap_score >= 3 ? "#ff4d6a" : "#ff9500"
+          }))
+        : defaultMissingSkills;
+
+    // ── FIX 1: derive improvement % dynamically ──────────────────────────────
+    const overallMatch = analysis.coverage_score
+        ? Math.round(analysis.coverage_score)
+        : 62;
+    const projectedMatch = analysis.projected_score
+        ? Math.round(analysis.projected_score)
+        : 91;
+    const improvement = projectedMatch - overallMatch;
+
+    // ── FIX 2: missing skill count ────────────────────────────────────────────
+    const missingCount = Array.isArray(analysis.skill_gaps)
+        ? analysis.skill_gaps.length
+        : 4;
+
+    // ── FIX 3: strong skills — handle array OR object from backend ────────────
+    const strongSkillsCount = Array.isArray(analysis.strong_skills)
+        ? analysis.strong_skills.length
+        : Object.keys(analysis.strong_skills || {}).length;
+
+    // ── FIX 4: categories — handle array OR object from backend ───────────────
+    const categoriesCount = Array.isArray(analysis.category_gaps)
+        ? analysis.category_gaps.length
+        : Object.keys(analysis.category_gaps || {}).length;
+
+    const hoursSaved = analysis.time_saved_hours
+        ? Math.round(analysis.time_saved_hours)
+        : 120;
+
+    return (
+        <div className="min-h-screen px-6 py-12 max-w-6xl mx-auto space-y-12">
+            {/* Header Section */}
             <div className="text-center mb-10">
                 <h1
                     className="text-3xl sm:text-4xl font-bold mb-3"
@@ -328,18 +376,18 @@ function ResultsPage({ onNavigate }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <MatchCard
                     label="Current Match"
-                    value={43}
+                    value={overallMatch}
                     color="#ff4d6a"
                     bgColor="#0f0d0d"
                     subtitle="of role requirements met"
                 />
                 <MatchCard
                     label="After This Roadmap"
-                    value={91}
+                    value={projectedMatch}
                     color="#00e5a0"
                     bgColor="#0a0f0d"
                     subtitle="projected readiness"
-                    badge="+48% improvement"
+                    badge={`+${improvement}% improvement`}
                 />
             </div>
 
@@ -356,10 +404,14 @@ function ResultsPage({ onNavigate }) {
                     className="font-medium mb-3"
                     style={{ color: "#e8edf5" }}
                 >
-                    4 critical skill gaps identified across 3 categories
+                    {missingCount} critical skill gaps identified across {categoriesCount} categories
                 </p>
                 <div className="flex flex-wrap gap-2">
-                    {["4 Missing Skills", "6 Strong Skills", "3 Categories"].map((stat) => (
+                    {[
+                        `${missingCount} Missing Skills`,
+                        `${strongSkillsCount} Strong Skills`,
+                        `${categoriesCount} Categories`
+                    ].map((stat) => (
                         <span
                             key={stat}
                             className="px-3 py-1.5 rounded-lg text-sm"
@@ -390,7 +442,7 @@ function ResultsPage({ onNavigate }) {
                         border: "1px solid rgba(255,255,255,0.06)"
                     }}
                 >
-                    {existingSkills.map((skill, i) => (
+                    {existingSkillsData.map((skill, i) => (
                         <SkillStepBar
                             key={skill.name}
                             name={skill.name}
@@ -417,7 +469,7 @@ function ResultsPage({ onNavigate }) {
                         border: "1px solid rgba(255,255,255,0.06)"
                     }}
                 >
-                    {missingSkills.map((skill, i) => (
+                    {missingSkillsData.map((skill, i) => (
                         <SkillStepBar
                             key={skill.name}
                             name={skill.name}
@@ -426,6 +478,73 @@ function ResultsPage({ onNavigate }) {
                             delay={900 + i * 120}
                         />
                     ))}
+                </div>
+            </div>
+
+            {/* Detailed Results */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Recommendations */}
+                <div className="space-y-6">
+                    <div className="bg-gray-800/40 p-6 rounded-2xl border border-gray-700/50">
+                        <h3 className="text-xl font-semibold mb-6 flex items-center">
+                            <span className="w-2 h-6 bg-blue-500 rounded-full mr-3"></span>
+                            Recommended Learning Path
+                        </h3>
+                        <p className="text-sm text-gray-300">
+                            Based on your current skills and gaps, we recommend the following learning path to enhance your qualifications for the desired role.
+                        </p>
+                        {/* TODO: Add dynamic learning path content */}
+                    </div>
+
+                    <div className="bg-gray-800/40 p-6 rounded-2xl border border-gray-700/50">
+                        <h3 className="text-xl font-semibold mb-6 flex items-center">
+                            <span className="w-2 h-6 bg-green-500 rounded-full mr-3"></span>
+                            Strengths to Leverage
+                        </h3>
+                        <p className="text-sm text-gray-300">
+                            These are your key strengths that align well with the role requirements. Consider leveraging these in your applications and interviews.
+                        </p>
+                        {/* TODO: Add dynamic strengths content */}
+                    </div>
+                </div>
+
+                {/* Right Column - Detailed Skill Analysis */}
+                <div className="bg-gray-800/40 p-6 rounded-2xl border border-gray-700/50">
+                    <h3 className="text-xl font-semibold mb-6 flex items-center">
+                        <span className="w-2 h-6 bg-purple-500 rounded-full mr-3"></span>
+                        Detailed Skill Analysis
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Existing Skills */}
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2" style={{ color: "#8892a4" }}>
+                                Verified Competencies
+                            </h4>
+                            <div className="space-y-3">
+                                {existingSkillsData.map((skill, i) => (
+                                    <div key={i} className="flex justify-between">
+                                        <span className="text-sm" style={{ color: "#e8edf5" }}>{skill.name}</span>
+                                        <span className="text-sm font-semibold" style={{ color: "#60a5fa" }}>{skill.value.toFixed(0)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Missing Skills */}
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2" style={{ color: "#8892a4" }}>
+                                Critical Gaps Identified
+                            </h4>
+                            <div className="space-y-3">
+                                {missingSkillsData.map((skill, i) => (
+                                    <div key={i} className="flex justify-between">
+                                        <span className="text-sm" style={{ color: "#e8edf5" }}>{skill.name}</span>
+                                        <span className="text-sm font-semibold" style={{ color: "#ff4d6a" }}>{skill.value.toFixed(0)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -444,7 +563,7 @@ function ResultsPage({ onNavigate }) {
                     Ready to close these gaps?
                 </h3>
                 <button
-                    onClick={() => onNavigate("roadmap")}
+                    onClick={() => onNavigate("roadmap", resultData)}
                     className="px-8 py-4 text-lg font-semibold rounded-xl text-white transition-all duration-300"
                     style={{
                         background: "linear-gradient(135deg, rgba(59,130,246,0.9), rgba(96,165,250,0.9))",
@@ -462,7 +581,7 @@ function ResultsPage({ onNavigate }) {
                     Build My Learning Roadmap →
                 </button>
                 <p className="text-sm mt-4" style={{ color: "#8892a4" }}>
-                    Estimated completion: 18 hours of learning
+                    Estimated completion: {hoursSaved} hours of learning
                 </p>
             </div>
 

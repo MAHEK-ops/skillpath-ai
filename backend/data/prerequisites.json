@@ -1,0 +1,22 @@
+{
+  "prerequisites": [
+    {"skill": "deep_learning", "requires": ["machine_learning"]},
+    {"skill": "machine_learning", "requires": ["python", "statistics"]},
+    {"skill": "natural_language_processing", "requires": ["machine_learning"]},
+    {"skill": "tensorflow", "requires": ["deep_learning", "python"]},
+    {"skill": "pytorch", "requires": ["deep_learning", "python"]},
+    {"skill": "scikit_learn", "requires": ["machine_learning", "python"]},
+    {"skill": "pandas", "requires": ["python"]},
+    {"skill": "numpy", "requires": ["python"]},
+    {"skill": "spark", "requires": ["python", "sql"]},
+    {"skill": "kubernetes", "requires": ["docker"]},
+    {"skill": "advanced_sql", "requires": ["sql"]},
+    {"skill": "data_visualization", "requires": ["python"]},
+    {"skill": "tableau", "requires": ["data_visualization"]},
+    {"skill": "power_bi", "requires": ["data_visualization"]},
+    {"skill": "etl", "requires": ["sql", "python"]},
+    {"skill": "aws", "requires": ["python"]},
+    {"skill": "gcp", "requires": ["python"]},
+    {"skill": "azure", "requires": ["python"]}
+  ]
+}

@@ -1,6 +1,6 @@
 import jsPDF from "jspdf"
 
-export const downloadRoadmapPDF = async (courses, completedCourses) => {
+export const downloadRoadmapPDF = async (courses, completedCourses, targetRole = "Data Analyst", currentMatch = 43, projectedMatch = 91) => {
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 20
@@ -34,7 +34,7 @@ export const downloadRoadmapPDF = async (courses, completedCourses) => {
     doc.setTextColor(30, 41, 59)
     doc.setFontSize(11)
     doc.setFont("helvetica", "bold")
-    doc.text("Target Role: Data Analyst", margin + 8, y + 8)
+    doc.text(`Target Role: ${targetRole}`, margin + 8, y + 8)
 
     doc.setTextColor(100, 116, 139)
     doc.setFontSize(9)
@@ -61,7 +61,7 @@ export const downloadRoadmapPDF = async (courses, completedCourses) => {
     doc.text("CURRENT MATCH", margin + 39, y + 8, { align: "center" })
     doc.setFontSize(20)
     doc.setTextColor(220, 38, 38)
-    doc.text("43%", margin + 39, y + 21, { align: "center" })
+    doc.text(`${currentMatch}%`, margin + 39, y + 21, { align: "center" })
 
     // After roadmap card
     doc.setFillColor(240, 253, 244)
@@ -75,15 +75,16 @@ export const downloadRoadmapPDF = async (courses, completedCourses) => {
     doc.text("AFTER ROADMAP", pageWidth - margin - 39, y + 8, { align: "center" })
     doc.setFontSize(20)
     doc.setTextColor(22, 163, 74)
-    doc.text("91%", pageWidth - margin - 39, y + 21, { align: "center" })
+    doc.text(`${projectedMatch}%`, pageWidth - margin - 39, y + 21, { align: "center" })
 
     // Improvement badge center
+    const improvement = projectedMatch - currentMatch;
     doc.setFillColor(220, 252, 231)
     doc.roundedRect(pageWidth / 2 - 22, y + 8, 44, 12, 6, 6, "F")
     doc.setTextColor(22, 163, 74)
     doc.setFontSize(9)
     doc.setFont("helvetica", "bold")
-    doc.text("+48% improvement", pageWidth / 2, y + 16, { align: "center" })
+    doc.text(`+${improvement}% improvement`, pageWidth / 2, y + 16, { align: "center" })
 
     y = 116
 
@@ -147,18 +148,25 @@ export const downloadRoadmapPDF = async (courses, completedCourses) => {
         doc.setTextColor(isCompleted ? 100 : 30, isCompleted ? 116 : 41, isCompleted ? 139 : 59)
         doc.setFontSize(10)
         doc.setFont("helvetica", "bold")
-        doc.text(course.title, margin + 26, y + 11)
+        // Truncate title if too long to avoid overlap
+        const displayTitle = course.title.length > 50 ? course.title.substring(0, 47) + "..." : course.title;
+        doc.text(displayTitle, margin + 26, y + 11)
 
         // Subtitle
         doc.setTextColor(100, 116, 139)
         doc.setFontSize(8)
         doc.setFont("helvetica", "normal")
-        doc.text(course.subtitle, margin + 26, y + 18)
+        const displaySubtitle = (course.subtitle || course.provider || "").length > 60 ? 
+            (course.subtitle || course.provider || "").substring(0, 57) + "..." : 
+            (course.subtitle || course.provider || "");
+        doc.text(displaySubtitle, margin + 26, y + 18)
 
         // Tags
         doc.setTextColor(148, 163, 184)
         doc.setFontSize(8)
-        doc.text(`${course.duration}  ·  ${course.skill}`, margin + 26, y + 25)
+        const durationText = course.duration || "Self-paced";
+        const skillText = course.skill || course.skill_covered || "General";
+        doc.text(`${durationText}  ·  ${skillText}`, margin + 26, y + 25)
 
         // Priority badge
         if (course.priority === "HIGH PRIORITY") {

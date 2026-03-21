@@ -116,6 +116,8 @@ class AnalyzeResponse(BaseModel):
     total_gap_score: float
     coverage_score: float = Field(..., description="% of role skills the candidate already meets")
     time_saved_hours: float = Field(..., description="Estimated hours saved vs full curriculum")
+    projected_score: Optional[float] = Field(None, description="Estimated match score after completing roadmap")
+    category_gaps: Optional[Dict[str, Any]] = Field(None, description="Skill gaps grouped by category")
     trace: List[TraceEntry]
 
 

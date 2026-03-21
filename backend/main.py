@@ -7,11 +7,11 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
-
+from typing import Optional
 
 load_dotenv()
 
@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 from routers import parse, analyze, pathway
 
 
-from models.schemas import FullAnalysisRequest, FullAnalysisResponse, ParseRequest
-from services.resume_parser import clean_text
+from models.schemas import FullAnalysisResponse, ParseRequest
+from services.resume_parser import clean_text, extract_text_from_bytes
 from services.skill_extractor import extract_skills_from_texts
-from services.gap_analyzer import analyze_gaps, compute_coverage_score
+from services.gap_analyzer import analyze_gaps, compute_coverage_score, compute_projected_score, compute_category_gaps
 from services.graph_builder import build_skill_gap_graph
 from services.course_matcher import match_courses, build_course_map, estimate_full_curriculum_hours
 from services.pathway_generator import generate_pathway, compute_metrics
@@ -69,8 +69,11 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "https://skillpath-ai.vercel.app",
-        "*", 
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -103,42 +106,58 @@ async def health_check():
     tags=["Full Pipeline"],
     summary="Run the complete SkillPath AI pipeline in one request",
 )
-async def full_analysis(body: FullAnalysisRequest):
+async def full_analysis(
+    resume_file: Optional[UploadFile] = File(None, description="Resume PDF, DOCX, or TXT"),
+    jd_file: Optional[UploadFile] = File(None, description="Job description file"),
+    resume_text: Optional[str] = Form(None, description="Resume as plain text"),
+    jd_text: Optional[str] = Form(None, description="Job description as plain text"),
+):
     """
     🚀 Full pipeline: Parse → Analyze → Pathway in a single API call.
 
-    Accepts resume_text and job_description_text, runs the entire engine,
-    and returns the complete analysis including:
-    - Extracted candidate skills
-    - Role requirements
-    - Skill gaps (priority ranked)
-    - Personalized learning pathway (prerequisite-ordered, course-grounded)
-    - Interactive graph data for visualization
-    - Full reasoning trace for every decision
-
-    This is the primary endpoint for the frontend.
+    Accepts resume and JD files/text, runs the entire engine,
+    and returns the complete analysis.
     """
-    if not body.resume_text:
-        raise HTTPException(status_code=422, detail="resume_text is required")
-    if not body.job_description_text:
-        raise HTTPException(status_code=422, detail="job_description_text is required")
-
     master_trace = TraceLogger()
-    resume_text = clean_text(body.resume_text)
-    jd_text = clean_text(body.job_description_text)
+    
+    final_resume_text = ""
+    if resume_file and resume_file.filename:
+        try:
+            file_bytes = await resume_file.read()
+            final_resume_text = clean_text(extract_text_from_bytes(file_bytes, resume_file.filename))
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"Failed to parse resume file: {str(e)}")
+    elif resume_text:
+        final_resume_text = clean_text(resume_text)
+
+    if not final_resume_text:
+        raise HTTPException(status_code=422, detail="Please provide a resume file or resume_text.")
+
+    final_jd_text = ""
+    if jd_file and jd_file.filename:
+        try:
+            file_bytes = await jd_file.read()
+            final_jd_text = clean_text(extract_text_from_bytes(file_bytes, jd_file.filename))
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"Failed to parse JD file: {str(e)}")
+    elif jd_text:
+        final_jd_text = clean_text(jd_text)
+
+    if not final_jd_text:
+        raise HTTPException(status_code=422, detail="Please provide a job description file or jd_text.")
 
 
     master_trace.log(
         step="pipeline_start",
-        input_summary=f"Resume: {len(resume_text)} chars, JD: {len(jd_text)} chars",
+        input_summary=f"Resume: {len(final_resume_text)} chars, JD: {len(final_jd_text)} chars",
         output_summary="Starting full analysis pipeline",
         reasoning="Initiating 3-step pipeline: Parse → Analyze → Pathway",
     )
 
     try:
         candidate_skills, role_requirements = extract_skills_from_texts(
-            resume_text=resume_text,
-            jd_text=jd_text,
+            resume_text=final_resume_text,
+            jd_text=final_jd_text,
             trace_logger=master_trace,
         )
     except Exception as e:
@@ -150,8 +169,8 @@ async def full_analysis(body: FullAnalysisRequest):
         candidate_skills=candidate_skills,
         role_requirements=role_requirements,
         trace=master_trace.get_entries(),
-        raw_resume_text=resume_text[:1000],
-        raw_jd_text=jd_text[:1000],
+        raw_resume_text=final_resume_text[:1000],
+        raw_jd_text=final_jd_text[:1000],
     )
 
 
@@ -166,7 +185,9 @@ async def full_analysis(body: FullAnalysisRequest):
         raise HTTPException(status_code=500, detail=f"Gap analysis failed: {str(e)}")
 
     total_gap_score = sum(g.gap_score for g in skill_gaps)
-    coverage_score = compute_coverage_score(role_requirements, skill_gaps)
+    coverage_score = compute_coverage_score(role_requirements, skill_gaps, candidate_skills)
+    projected_score = compute_projected_score(coverage_score, skill_gaps)
+    category_gaps = compute_category_gaps(skill_gaps)
     FULL_CURRICULUM_HOURS = 3200.0
     time_saved_hours = round((coverage_score / 100) * FULL_CURRICULUM_HOURS, 1)
 
@@ -177,6 +198,8 @@ async def full_analysis(body: FullAnalysisRequest):
         total_gap_score=round(total_gap_score, 2),
         coverage_score=coverage_score,
         time_saved_hours=time_saved_hours,
+        projected_score=projected_score,
+        category_gaps=category_gaps,
         trace=master_trace.get_entries(),
     )
 
@@ -275,3 +298,13 @@ async def get_demo_presets():
         logger.error(f"Failed to load demo presets: {e}")
 
         return {"presets": []}
+
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc: Exception):
+    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected server error occurred. Please try again later.", "error": str(exc)},
+    )

@@ -6,7 +6,12 @@ Runs the gap analysis algorithm on candidate skills vs. role requirements.
 import logging
 from fastapi import APIRouter, HTTPException
 from models.schemas import AnalyzeRequest, AnalyzeResponse
-from services.gap_analyzer import analyze_gaps, compute_coverage_score
+from services.gap_analyzer import (
+    analyze_gaps,
+    compute_coverage_score,
+    compute_projected_score,
+    compute_category_gaps,
+)
 from services.trace_logger import TraceLogger
 
 logger = logging.getLogger(__name__)
@@ -29,6 +34,8 @@ async def analyze(body: AnalyzeRequest):
     - Detailed list of skill gaps with priority scores
     - Skills the candidate already satisfies
     - Coverage score (% of role requirements met)
+    - Projected score after completing the roadmap
+    - Skill gaps grouped by category
     - Time saved estimate vs full curriculum
     - Reasoning trace
     """
@@ -57,8 +64,9 @@ async def analyze(body: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=f"Gap analysis failed: {str(e)}")
 
     total_gap_score = sum(g.gap_score for g in skill_gaps)
-    coverage_score = compute_coverage_score(body.role_requirements, skill_gaps)
-
+    coverage_score = compute_coverage_score(body.role_requirements, skill_gaps, body.candidate_skills)
+    projected_score = compute_projected_score(coverage_score, skill_gaps)
+    category_gaps = compute_category_gaps(skill_gaps)
 
     time_saved_hours = round((coverage_score / 100) * FULL_CURRICULUM_HOURS, 1)
 
@@ -68,5 +76,7 @@ async def analyze(body: AnalyzeRequest):
         total_gap_score=round(total_gap_score, 2),
         coverage_score=coverage_score,
         time_saved_hours=time_saved_hours,
+        projected_score=projected_score,
+        category_gaps=category_gaps,
         trace=trace.get_entries(),
     )

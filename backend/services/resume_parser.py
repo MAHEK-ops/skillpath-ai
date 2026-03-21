@@ -65,11 +65,7 @@ def extract_text_from_bytes(file_bytes: bytes, filename: str) -> str:
         except UnicodeDecodeError:
             return file_bytes.decode("latin-1").strip()
     else:
-
-        try:
-            return file_bytes.decode("utf-8").strip()
-        except Exception as e:
-            raise ValueError(f"Unsupported file type: {filename}. Please upload PDF, DOCX, or TXT.")
+        raise ValueError(f"Unsupported file type: {filename}. Please upload PDF, DOCX, or TXT.")
 
 
 def clean_text(text: str) -> str:
@@ -78,6 +74,7 @@ def clean_text(text: str) -> str:
 
     text = text.replace("\x00", "")
 
-    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Replace multiple spaces/newlines/tabs with a single space
+    text = re.sub(r"\s+", " ", text)
 
     return text.strip()

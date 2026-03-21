@@ -22,7 +22,11 @@ def _load_catalog() -> List[Dict]:
     global _catalog_cache
     if _catalog_cache is None:
         with open(CATALOG_PATH, "r") as f:
-            _catalog_cache = json.load(f)
+            data = json.load(f)
+            if isinstance(data, list):
+                _catalog_cache = data
+            else:
+                _catalog_cache = data.get("courses", [])
     return _catalog_cache
 
 

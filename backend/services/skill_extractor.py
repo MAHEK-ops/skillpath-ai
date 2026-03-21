@@ -8,10 +8,11 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import List, Tuple, Optional
 
-from groq import Groq
+from groq import Groq, RateLimitError
 from models.schemas import (
     ExtractedSkill,
     RoleSkillRequirement,
@@ -23,15 +24,13 @@ from services.trace_logger import TraceLogger
 logger = logging.getLogger(__name__)
 
 
-_groq_client: Optional[Groq] = None
-
-
 def _get_client() -> Groq:
-    global _groq_client
-    if _groq_client is None:
-        api_key = os.environ.get("GROQ_API_KEY", "")
-        _groq_client = Groq(api_key=api_key)
-    return _groq_client
+    """Always create a fresh Groq client using the current GROQ_API_KEY env var.
+    This ensures a new API key in .env takes effect after server restart."""
+    api_key = os.environ.get("GROQ_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not set. Please add it to your .env file.")
+    return Groq(api_key=api_key)
 
 
 
@@ -122,26 +121,47 @@ JOB DESCRIPTION TEXT:
 """
 
 
-def _call_groq(prompt: str, max_tokens: int = 2048) -> str:
-    """Call Groq API and return the text response."""
-    client = _get_client()
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a precise skills extraction AI. "
-                    "Always return valid JSON only, with no markdown code blocks, no extra text."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=max_tokens,
-        temperature=0.1, 
-    )
-    return response.choices[0].message.content.strip()
+def _call_groq(prompt: str, max_tokens: int = 2048, max_retries: int = 2) -> str:
+    """Call Groq API and return the text response.
+    
+    Retries on 429 rate-limit errors up to max_retries times,
+    waiting the time suggested in the error message (capped at 30s).
+    """
+    for attempt in range(max_retries + 1):
+        client = _get_client()
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a precise skills extraction AI. "
+                            "Always return valid JSON only, with no markdown code blocks, no extra text."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=max_tokens,
+                temperature=0.1,
+            )
+            return response.choices[0].message.content.strip()
+        except RateLimitError as e:
+            if attempt >= max_retries:
+                raise
 
+            wait_seconds = 10  
+            msg = str(e)
+            import re as _re
+            m = _re.search(r"try again in ([\d.]+)s", msg)
+            if m:
+                wait_seconds = min(float(m.group(1)), 30) 
+            logger.warning(
+                f"Groq rate limit hit (attempt {attempt + 1}/{max_retries + 1}). "
+                f"Retrying in {wait_seconds:.1f}s..."
+            )
+            time.sleep(wait_seconds)
+    raise RuntimeError("Max retries exceeded calling Groq API")
 
 def _clean_json_response(raw: str) -> str:
     """Strip markdown code fences if the LLM wraps output in them."""
@@ -171,6 +191,7 @@ def extract_candidate_skills(
         parsed = json.loads(clean)
         raw_skills = parsed.get("skills", [])
     except (json.JSONDecodeError, KeyError) as e:
+        # pyre-ignore[16]
         logger.error(f"LLM response parse error for resume: {e}\nRaw: {raw_response[:500]}")
         trace_logger.log(
             step="resume_skill_extraction",
@@ -234,6 +255,7 @@ def extract_role_requirements(
         parsed = json.loads(clean)
         raw_reqs = parsed.get("requirements", [])
     except (json.JSONDecodeError, KeyError) as e:
+
         logger.error(f"LLM response parse error for JD: {e}\nRaw: {raw_response[:500]}")
         trace_logger.log(
             step="jd_requirement_extraction",
