@@ -14,7 +14,7 @@
 identifies exact skill gaps against any job description, and generates
 a personalized learning roadmap — powered by Groq + Llama-3 and O\*NET.**
 
-[Demo](#usage) · [Architecture](#architecture) · [API](#api-endpoints) · [Setup](#installation)
+[Usage](#usage) · [Architecture](#architecture) · [API](#api-endpoints) · [Setup](#installation)
 
 </div>
 
