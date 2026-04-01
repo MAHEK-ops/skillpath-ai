@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://skillpath-ai-4rtd.onrender.com/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://...onrender.com/api').replace(/\/+$/, '');
 
 export const apiClient = {
   async parseDocs(resumeFile, jdFile, resumeText, jdText) {
