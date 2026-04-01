@@ -1,21 +1,5 @@
 import { useState, useEffect, useRef } from "react"
 
-const defaultExistingSkills = [
-    { name: "Python", value: 85, color: "#60a5fa" },
-    { name: "SQL", value: 78, color: "#60a5fa" },
-    { name: "Data Analysis", value: 72, color: "#60a5fa" },
-    { name: "Excel", value: 90, color: "#60a5fa" },
-    { name: "Statistics", value: 65, color: "#60a5fa" },
-    { name: "Communication", value: 80, color: "#60a5fa" },
-]
-
-const defaultMissingSkills = [
-    { name: "Machine Learning", value: 12, color: "#ff4d6a" },
-    { name: "Tableau", value: 0, color: "#ff4d6a" },
-    { name: "Python Advanced", value: 35, color: "#ff9500" },
-    { name: "Deep Learning", value: 0, color: "#ff4d6a" },
-]
-
 function AnimatedNumber({ value, duration = 1500 }) {
     const [current, setCurrent] = useState(0)
     useEffect(() => {
@@ -59,12 +43,9 @@ function SparklineChart({ color, finalVal }) {
         const getX = (i) => (i / (pts.length - 1)) * w
         const getY = (pt) => h - ((pt - min) / (max - min)) * h * 0.8 - 4
 
-        // Fill area
         ctx.beginPath()
         pts.forEach((pt, i) => {
-            i === 0
-                ? ctx.moveTo(getX(i), getY(pt))
-                : ctx.lineTo(getX(i), getY(pt))
+            i === 0 ? ctx.moveTo(getX(i), getY(pt)) : ctx.lineTo(getX(i), getY(pt))
         })
         ctx.lineTo(w, h)
         ctx.lineTo(0, h)
@@ -72,12 +53,9 @@ function SparklineChart({ color, finalVal }) {
         ctx.fillStyle = color + "15"
         ctx.fill()
 
-        // Line
         ctx.beginPath()
         pts.forEach((pt, i) => {
-            i === 0
-                ? ctx.moveTo(getX(i), getY(pt))
-                : ctx.lineTo(getX(i), getY(pt))
+            i === 0 ? ctx.moveTo(getX(i), getY(pt)) : ctx.lineTo(getX(i), getY(pt))
         })
         ctx.shadowColor = color
         ctx.shadowBlur = 6
@@ -86,7 +64,6 @@ function SparklineChart({ color, finalVal }) {
         ctx.stroke()
         ctx.shadowBlur = 0
 
-        // End dot
         const lastX = getX(pts.length - 1)
         const lastY = getY(pts[pts.length - 1])
         ctx.beginPath()
@@ -96,7 +73,6 @@ function SparklineChart({ color, finalVal }) {
         ctx.shadowBlur = 8
         ctx.fill()
         ctx.shadowBlur = 0
-
     }, [color, finalVal])
 
     return (
@@ -118,7 +94,6 @@ function MatchCard({ label, value, color, bgColor, subtitle, badge }) {
                 position: "relative"
             }}
         >
-            {/* Label */}
             <div
                 className="text-xs font-bold uppercase tracking-wider mb-3"
                 style={{ color: "#8892a4", letterSpacing: "0.1em" }}
@@ -126,10 +101,8 @@ function MatchCard({ label, value, color, bgColor, subtitle, badge }) {
                 {label}
             </div>
 
-            {/* Sparkline */}
             <SparklineChart color={color} finalVal={value} />
 
-            {/* Big number */}
             <div
                 className="font-extrabold mt-3 mb-1"
                 style={{
@@ -184,17 +157,12 @@ function SkillStepBar({ name, value, color, delay = 0 }) {
     return (
         <div className="mb-7">
             <div className="flex justify-between items-center mb-2">
-                <span
-                    className="text-sm font-semibold"
-                    style={{ color: "#e8edf5" }}
-                >
+                <span className="text-sm font-semibold" style={{ color: "#e8edf5" }}>
                     {name}
                 </span>
             </div>
 
             <div style={{ position: "relative", paddingTop: "20px" }}>
-
-                {/* Percentage label with drop line */}
                 <div
                     style={{
                         position: "absolute",
@@ -228,7 +196,6 @@ function SkillStepBar({ name, value, color, delay = 0 }) {
                     />
                 </div>
 
-                {/* Track */}
                 <div
                     style={{
                         position: "relative",
@@ -237,7 +204,6 @@ function SkillStepBar({ name, value, color, delay = 0 }) {
                         borderRadius: "99px"
                     }}
                 >
-                    {/* Fill */}
                     <div
                         style={{
                             position: "absolute",
@@ -251,8 +217,6 @@ function SkillStepBar({ name, value, color, delay = 0 }) {
                             transition: "width 1.2s cubic-bezier(0.4,0,0.2,1)"
                         }}
                     />
-
-                    {/* Dot */}
                     <div
                         style={{
                             position: "absolute",
@@ -283,11 +247,7 @@ function SkillStepBar({ name, value, color, delay = 0 }) {
                     </div>
                 </div>
 
-                {/* Step labels */}
-                <div
-                    className="flex justify-between mt-2"
-                    style={{ paddingTop: "4px" }}
-                >
+                <div className="flex justify-between mt-2" style={{ paddingTop: "4px" }}>
                     {["Beginner", "Intermediate", "Advanced", "Expert"].map((label) => (
                         <span
                             key={label}
@@ -308,58 +268,65 @@ function SkillStepBar({ name, value, color, delay = 0 }) {
 }
 
 function ResultsPage({ onNavigate, resultData }) {
-    console.log("ResultsPage data:", JSON.stringify(resultData, null, 2))
     const analysis = resultData?.analysis || {};
     const parsed = resultData?.parsed || {};
 
-    // Map backend data to UI format
+    // Only show real data — no fallbacks
     const existingSkillsData = parsed.candidate_skills
         ? parsed.candidate_skills.map(s => ({
             name: s.skill_name,
-            value: (s.proficiency_level / 5) * 100,
+            value: Math.round((s.proficiency_level / 5) * 100),
             color: "#60a5fa"
           }))
-        : defaultExistingSkills;
+        : [];
 
     const missingSkillsData = analysis.skill_gaps
         ? analysis.skill_gaps.map(g => ({
             name: g.skill_name,
-            value: (g.candidate_level / g.required_level) * 100 || 0,
+            value: Math.round((g.candidate_level / g.required_level) * 100) || 0,
             color: g.gap_score >= 3 ? "#ff4d6a" : "#ff9500"
           }))
-        : defaultMissingSkills;
+        : [];
 
-    // ── FIX 1: derive improvement % dynamically ──────────────────────────────
-    const overallMatch = analysis.coverage_score
-        ? Math.round(analysis.coverage_score)
-        : 62;
-    const projectedMatch = analysis.projected_score
-        ? Math.round(analysis.projected_score)
-        : 91;
+    const overallMatch = analysis.coverage_score ? Math.round(analysis.coverage_score) : 0;
+    const projectedMatch = analysis.projected_score ? Math.round(analysis.projected_score) : 0;
     const improvement = projectedMatch - overallMatch;
 
-    // ── FIX 2: missing skill count ────────────────────────────────────────────
-    const missingCount = Array.isArray(analysis.skill_gaps)
-        ? analysis.skill_gaps.length
-        : 4;
-
-    // ── FIX 3: strong skills — handle array OR object from backend ────────────
+    const missingCount = Array.isArray(analysis.skill_gaps) ? analysis.skill_gaps.length : 0;
     const strongSkillsCount = Array.isArray(analysis.strong_skills)
         ? analysis.strong_skills.length
         : Object.keys(analysis.strong_skills || {}).length;
-
-    // ── FIX 4: categories — handle array OR object from backend ───────────────
     const categoriesCount = Array.isArray(analysis.category_gaps)
         ? analysis.category_gaps.length
         : Object.keys(analysis.category_gaps || {}).length;
+    const hoursSaved = analysis.time_saved_hours ? Math.round(analysis.time_saved_hours) : 0;
 
-    const hoursSaved = analysis.time_saved_hours
-        ? Math.round(analysis.time_saved_hours)
-        : 120;
+    // If no real data yet, show an empty state
+    if (!resultData) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-lg mb-4" style={{ color: "#8892a4" }}>
+                        No analysis data yet.
+                    </p>
+                    <button
+                        onClick={() => onNavigate("upload")}
+                        className="px-6 py-3 rounded-xl text-white font-semibold"
+                        style={{
+                            background: "linear-gradient(135deg, rgba(59,130,246,0.9), rgba(96,165,250,0.9))",
+                            boxShadow: "0 0 20px rgba(59,130,246,0.3)"
+                        }}
+                    >
+                        Upload your resume to get started →
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen px-6 py-12 max-w-6xl mx-auto space-y-12">
-            {/* Header Section */}
+            {/* Header */}
             <div className="text-center mb-10">
                 <h1
                     className="text-3xl sm:text-4xl font-bold mb-3"
@@ -387,7 +354,7 @@ function ResultsPage({ onNavigate, resultData }) {
                     color="#00e5a0"
                     bgColor="#0a0f0d"
                     subtitle="projected readiness"
-                    badge={`+${improvement}% improvement`}
+                    badge={improvement > 0 ? `+${improvement}% improvement` : null}
                 />
             </div>
 
@@ -400,10 +367,7 @@ function ResultsPage({ onNavigate, resultData }) {
                     boxShadow: "0 8px 32px rgba(0,0,0,0.4)"
                 }}
             >
-                <p
-                    className="font-medium mb-3"
-                    style={{ color: "#e8edf5" }}
-                >
+                <p className="font-medium mb-3" style={{ color: "#e8edf5" }}>
                     {missingCount} critical skill gaps identified across {categoriesCount} categories
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -428,62 +392,65 @@ function ResultsPage({ onNavigate, resultData }) {
             </div>
 
             {/* Skills You Have */}
-            <div>
-                <h2
-                    className="text-xs font-bold uppercase tracking-wider mb-6"
-                    style={{ color: "#8892a4", letterSpacing: "0.1em" }}
-                >
-                    Skills You Have
-                </h2>
-                <div
-                    className="p-6 rounded-2xl mb-10"
-                    style={{
-                        background: "#141c2e",
-                        border: "1px solid rgba(255,255,255,0.06)"
-                    }}
-                >
-                    {existingSkillsData.map((skill, i) => (
-                        <SkillStepBar
-                            key={skill.name}
-                            name={skill.name}
-                            value={skill.value}
-                            color={skill.color}
-                            delay={300 + i * 120}
-                        />
-                    ))}
+            {existingSkillsData.length > 0 && (
+                <div>
+                    <h2
+                        className="text-xs font-bold uppercase tracking-wider mb-6"
+                        style={{ color: "#8892a4", letterSpacing: "0.1em" }}
+                    >
+                        Skills You Have
+                    </h2>
+                    <div
+                        className="p-6 rounded-2xl mb-10"
+                        style={{
+                            background: "#141c2e",
+                            border: "1px solid rgba(255,255,255,0.06)"
+                        }}
+                    >
+                        {existingSkillsData.map((skill, i) => (
+                            <SkillStepBar
+                                key={skill.name}
+                                name={skill.name}
+                                value={skill.value}
+                                color={skill.color}
+                                delay={300 + i * 120}
+                            />
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Skill Gaps */}
-            <div>
-                <h2
-                    className="text-xs font-bold uppercase tracking-wider mb-6"
-                    style={{ color: "#8892a4", letterSpacing: "0.1em" }}
-                >
-                    Skill Gaps
-                </h2>
-                <div
-                    className="p-6 rounded-2xl mb-10"
-                    style={{
-                        background: "#141c2e",
-                        border: "1px solid rgba(255,255,255,0.06)"
-                    }}
-                >
-                    {missingSkillsData.map((skill, i) => (
-                        <SkillStepBar
-                            key={skill.name}
-                            name={skill.name}
-                            value={skill.value}
-                            color={skill.color}
-                            delay={900 + i * 120}
-                        />
-                    ))}
+            {missingSkillsData.length > 0 && (
+                <div>
+                    <h2
+                        className="text-xs font-bold uppercase tracking-wider mb-6"
+                        style={{ color: "#8892a4", letterSpacing: "0.1em" }}
+                    >
+                        Skill Gaps
+                    </h2>
+                    <div
+                        className="p-6 rounded-2xl mb-10"
+                        style={{
+                            background: "#141c2e",
+                            border: "1px solid rgba(255,255,255,0.06)"
+                        }}
+                    >
+                        {missingSkillsData.map((skill, i) => (
+                            <SkillStepBar
+                                key={skill.name}
+                                name={skill.name}
+                                value={skill.value}
+                                color={skill.color}
+                                delay={900 + i * 120}
+                            />
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Detailed Results */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column - Recommendations */}
                 <div className="space-y-6">
                     <div className="bg-gray-800/40 p-6 rounded-2xl border border-gray-700/50">
                         <h3 className="text-xl font-semibold mb-6 flex items-center">
@@ -493,7 +460,6 @@ function ResultsPage({ onNavigate, resultData }) {
                         <p className="text-sm text-gray-300">
                             Based on your current skills and gaps, we recommend the following learning path to enhance your qualifications for the desired role.
                         </p>
-                        {/* TODO: Add dynamic learning path content */}
                     </div>
 
                     <div className="bg-gray-800/40 p-6 rounded-2xl border border-gray-700/50">
@@ -504,18 +470,15 @@ function ResultsPage({ onNavigate, resultData }) {
                         <p className="text-sm text-gray-300">
                             These are your key strengths that align well with the role requirements. Consider leveraging these in your applications and interviews.
                         </p>
-                        {/* TODO: Add dynamic strengths content */}
                     </div>
                 </div>
 
-                {/* Right Column - Detailed Skill Analysis */}
                 <div className="bg-gray-800/40 p-6 rounded-2xl border border-gray-700/50">
                     <h3 className="text-xl font-semibold mb-6 flex items-center">
                         <span className="w-2 h-6 bg-purple-500 rounded-full mr-3"></span>
                         Detailed Skill Analysis
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
-                        {/* Existing Skills */}
                         <div>
                             <h4 className="text-sm font-semibold mb-2" style={{ color: "#8892a4" }}>
                                 Verified Competencies
@@ -524,13 +487,11 @@ function ResultsPage({ onNavigate, resultData }) {
                                 {existingSkillsData.map((skill, i) => (
                                     <div key={i} className="flex justify-between">
                                         <span className="text-sm" style={{ color: "#e8edf5" }}>{skill.name}</span>
-                                        <span className="text-sm font-semibold" style={{ color: "#60a5fa" }}>{skill.value.toFixed(0)}%</span>
+                                        <span className="text-sm font-semibold" style={{ color: "#60a5fa" }}>{skill.value}%</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
-
-                        {/* Missing Skills */}
                         <div>
                             <h4 className="text-sm font-semibold mb-2" style={{ color: "#8892a4" }}>
                                 Critical Gaps Identified
@@ -539,7 +500,7 @@ function ResultsPage({ onNavigate, resultData }) {
                                 {missingSkillsData.map((skill, i) => (
                                     <div key={i} className="flex justify-between">
                                         <span className="text-sm" style={{ color: "#e8edf5" }}>{skill.name}</span>
-                                        <span className="text-sm font-semibold" style={{ color: "#ff4d6a" }}>{skill.value.toFixed(0)}%</span>
+                                        <span className="text-sm font-semibold" style={{ color: "#ff4d6a" }}>{skill.value}%</span>
                                     </div>
                                 ))}
                             </div>
@@ -556,10 +517,7 @@ function ResultsPage({ onNavigate, resultData }) {
                     border: "1px solid rgba(255,255,255,0.06)"
                 }}
             >
-                <h3
-                    className="text-xl font-semibold mb-4"
-                    style={{ color: "#e8edf5" }}
-                >
+                <h3 className="text-xl font-semibold mb-4" style={{ color: "#e8edf5" }}>
                     Ready to close these gaps?
                 </h3>
                 <button
@@ -580,11 +538,12 @@ function ResultsPage({ onNavigate, resultData }) {
                 >
                     Build My Learning Roadmap →
                 </button>
-                <p className="text-sm mt-4" style={{ color: "#8892a4" }}>
-                    Estimated completion: {hoursSaved} hours of learning
-                </p>
+                {hoursSaved > 0 && (
+                    <p className="text-sm mt-4" style={{ color: "#8892a4" }}>
+                        Estimated completion: {hoursSaved} hours of learning
+                    </p>
+                )}
             </div>
-
         </div>
     )
 }
