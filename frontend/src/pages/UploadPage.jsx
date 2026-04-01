@@ -349,6 +349,22 @@ function UploadPage({ onNavigate }) {
                 {error && (
                     <p className="text-red-400 text-sm text-center mt-3">{error}</p>
                 )}
+
+                <div className="text-center mt-4">
+                    <button
+                        onClick={loadSampleData}
+                        className="px-6 py-2 rounded-lg text-sm transition-all duration-300"
+                        style={{
+                            color: "#8892a4",
+                            background: "#111827",
+                            border: "1px solid rgba(255,255,255,0.05)"
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.border = "1px solid #3b82f6"}
+                        onMouseLeave={e => e.currentTarget.style.border = "1px solid rgba(255,255,255,0.05)"}
+                    >
+                        Try with sample data
+                    </button>
+                </div>
             </div>
         </div>
     )
