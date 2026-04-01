@@ -39,7 +39,7 @@ function SkillGraph({ nodes, edges }) {
             >
                 Skill Dependency Graph
             </h2>
-            <div className="relative" style={{ minWidth: "480px", height: "170px" }}>
+            <div className="relative" style={{ minWidth: "480px", height: `${Math.ceil(nodes.length / 3) * 70 + 40}px` }}>
                 <svg className="absolute inset-0 w-full h-full">
                     {edges.map((edge, i) => (
                         <line
@@ -148,12 +148,26 @@ function CourseCard({ course, index, isCompleted, onToggle }) {
 
                     <div className="flex flex-wrap gap-3 mt-3 text-xs" style={{ color: "#8892a4" }}>
                         <span>⏱ {course.duration}</span>
-                        <span
-                            className="px-2 py-0.5 rounded"
-                            style={{ background: "#1a2340", color: "#60a5fa" }}
-                        >
-                            {course.skill}
-                        </span>
+                        {course.skill && (
+                            <span
+                                className="px-2 py-0.5 rounded"
+                                style={{ background: "#1a2340", color: "#60a5fa" }}
+                            >
+                                {course.skill}
+                            </span>
+                        )}
+                        {course.url && (
+                            <a
+                                href={course.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-0.5 rounded transition-colors"
+                                style={{ background: "#1a2340", color: "#00e5a0", border: "1px solid #00e5a020" }}
+                                onClick={e => e.stopPropagation()}
+                            >
+                                View Course →
+                            </a>
+                        )}
                     </div>
 
                     {course.reasoning && (
@@ -227,26 +241,45 @@ function RoadmapPage({ onNavigate, resultData }) {
     const pathwayData = resultData?.pathway || {}
     const rawSteps = Array.isArray(pathwayData.pathway) ? pathwayData.pathway : []
 
-    const courses = rawSteps.map((c, i) => {
-        const hours = c.estimated_hours ?? c.duration ?? 0
-        const priorityScore = c.priority_score ?? c.gap_score ?? 0
-        const isHigh = priorityScore >= 3 || c.priority === "HIGH PRIORITY"
+    const courses = rawSteps.map((step, i) => {
+        const course = step.course  // optional Course object
+        const isHigh = step.priority_score >= 3
         return {
-            id: c.course_id || c.id || i + 1,
-            title: c.course_name || c.title || `Course ${i + 1}`,
-            subtitle: c.skill_gap || c.subtitle || c.description || "",
-            duration: `${hours} hours`,
-            skill: c.skill_gap || c.skill || c.target_skill || "",
+            id: course?.id || step.skill_code || i + 1,
+            title: course?.title || step.skill_name || `Step ${i + 1}`,
+            subtitle: course
+                ? `${course.provider} · ${course.description || ""}`.slice(0, 80)
+                : `Build proficiency in ${step.skill_name}`,
+            duration: `${step.estimated_hours} hours`,
+            skill: step.skill_name || "",
+            url: course?.url || null,
             priority: isHigh ? "HIGH PRIORITY" : "MEDIUM",
             priorityColor: isHigh ? "#ff4d6a" : "#ff9500",
-            reasoning: c.reasoning || c.why || ""
+            reasoning: step.reasoning || ""
         }
     })
 
-    // Graph data from backend
+    // Graph data — auto-layout nodes if backend positions are missing/overlapping
     const graphData = pathwayData.graph_data || {}
-    const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-    const edges = Array.isArray(graphData.edges) ? graphData.edges : []
+    const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+    const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : []
+
+    // Re-layout nodes in a clean grid if they have no/bad positions
+    const COLS = 3
+    const COL_W = 160
+    const ROW_H = 70
+    const nodes = rawNodes.map((node, i) => ({
+        ...node,
+        label: node.label || node.id || node.skill_name || `Node ${i}`,
+        x: (i % COLS) * COL_W + 20,
+        y: Math.floor(i / COLS) * ROW_H + 20,
+        status: node.status || "future"
+    }))
+    const edges = rawEdges.map(e => ({
+        ...e,
+        x1: e.x1 ?? 0, y1: e.y1 ?? 0,
+        x2: e.x2 ?? 0, y2: e.y2 ?? 0,
+    }))
 
     const toggleCourse = (id) => {
         setCompletedCourses((prev) =>
