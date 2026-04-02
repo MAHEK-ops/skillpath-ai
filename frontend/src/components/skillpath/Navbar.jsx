@@ -128,17 +128,8 @@ function Navbar({ currentPage, onNavigate }) {
                     )
                 })}
             </div>
-            {/* Right side — hackathon badge */}
-            <div
-                className="text-xs font-medium px-3 py-1.5 rounded-full hidden sm:block"
-                style={{
-                    background: "rgba(96,165,250,0.08)",
-                    border: "1px solid rgba(96,165,250,0.2)",
-                    color: "#60a5fa"
-                }}
-            >
-                ✦ IISc Bangalore 2026
-            </div>
+            {/* Right side spacer to keep nav centered */}
+            <div className="hidden sm:block w-[160px]" />
         </nav>
     )
 }

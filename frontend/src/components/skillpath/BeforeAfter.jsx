@@ -87,7 +87,7 @@ function BeforeAfter() {
                     e.currentTarget.style.boxShadow = "none"
                 }}
             >
-                {isAfter ? "← See Without" : "✦ See the Difference"}
+                {isAfter ? "← See Without" : "✦ Click here to see the Difference"}
             </button>
 
             {/* Scene — diagonal layout */}

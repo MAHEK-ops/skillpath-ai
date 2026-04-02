@@ -6,11 +6,11 @@ const features = [
   },
   {
     title: "Personalized Pathway",
-    description: "A custom learning roadmap built just for you — not a generic course list"
+    description: "A custom learning roadmap built just for you, not a generic course list"
   },
   {
     title: "AI Reasoning",
-    description: "Every recommendation explained — know why you're learning what you're learning"
+    description: "Every recommendation explained, know why you're learning what you're learning"
   }
 ]
 
