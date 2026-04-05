@@ -265,7 +265,7 @@ Frontend runs at `http://localhost:5173`
 1. Open `http://localhost:5173` in your browser
 2. Upload your resume in PDF format
 3. Paste the target job description
-4. Select role type — Technical or Operational
+4. Select role type - Technical or Operational
 5. Click **Analyze My Skills**
 6. View your personalized skill analysis with confidence scores
 7. Explore your learning roadmap with AI reasoning per course
